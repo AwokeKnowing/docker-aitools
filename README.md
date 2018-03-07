@@ -16,7 +16,9 @@ docker run --runtime=nvidia -ti --rm -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix
 ```
 
 
-# setting up the host machine (ubuntu 16.04) will look something like:
+### setting up the host machine (ubuntu 16.04) will look something like:
+
+```
 sudo apt-get purge nvidia*
 sudo apt install nvidia-390
 sudo apt-get install cuda-drivers
@@ -34,3 +36,4 @@ sudo apt-get update
 sudo apt-get install nvidia-docker2
 sudo pkill -SIGHUP dockerd
 docker run --runtime=nvidia --rm nvidia/cuda nvidia-smi
+```
