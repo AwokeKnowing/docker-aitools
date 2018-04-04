@@ -1,6 +1,27 @@
 FROM nvidia/cudagl:9.0-devel-ubuntu16.04
 LABEL maintainer "jamesdavidmorris@gmail.com"
 
+# to build:
+#   docker build --no-cache -t awokeknowing/aitools:2018-04-03 -t awokeknowing/aitools:latest .
+
+# to set up machine for run: 
+#   once:         
+#     host machine needs ubuntu, nvidia drivers, docker, nvidia runtime for docker
+#   each session: 
+#     >cd /my/project/folder     (will be mounted into container at /root/work/)
+#     >xhost +si:localuser:root  (gives permission to docker to foward GUI windows)
+
+# to run (on local machine):
+#   docker run --runtime=nvidia -ti --rm -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -p8888:8888 -p6001:6001 -v$(pwd):/root/work awokeknowing/aitools
+
+# at prompt:
+# /root>python testgym.py  (should show space invaders, ctrl-c to exit)
+# /root>lab                (should start jupyter lab. Click the link and should open in browser)
+
+# in Juptyer Lab:
+#   click "demo.ipynb"     (demo showing gym atari, pytorch, matplotlib, opencv, tensorboard)
+
+
 ####dependencies
 
 RUN apt-get update \
@@ -141,7 +162,7 @@ RUN cd /usr/local/bin \
 
 
 # if this is called "PIP_VERSION", pip explodes with "ValueError: invalid truth value '<VERSION>'"
-ENV PYTHON_PIP_VERSION 9.0.1
+ENV PYTHON_PIP_VERSION 9.0.3
 
 RUN set -ex; \
     \
@@ -339,6 +360,7 @@ RUN pip --no-cache-dir install \
         h5py \
         ipykernel \
         jupyter \
+        jupyterlab \
         matplotlib \
         numpy \
         cupy \
@@ -354,15 +376,29 @@ RUN pip --no-cache-dir install \
         && \
     python -m ipykernel.kernelspec
 
-# Set up our notebook config.
-COPY jupyter_notebook_config_py3.py /root/.jupyter/
-RUN mv /root/.jupyter/jupyter_notebook_config_py3.py /root/.jupyter/jupyter_notebook_config.py
+
+
+# Create jupyter config
+RUN mkdir /root/.jupyter && cd /root/.jupyter/ && \
+/bin/echo -e "import os"                                                  > jupyter_notebook_config.py && \
+/bin/echo -e "from IPython.lib import passwd"                            >> jupyter_notebook_config.py && \
+/bin/echo -e ""                                                          >> jupyter_notebook_config.py && \
+/bin/echo -e "c.NotebookApp.ip = '*'"                                    >> jupyter_notebook_config.py && \
+/bin/echo -e "c.NotebookApp.port = int(os.getenv('PORT', 8888))"         >> jupyter_notebook_config.py && \
+/bin/echo -e "c.NotebookApp.open_browser = False"                        >> jupyter_notebook_config.py && \
+/bin/echo -e "c.MultiKernelManager.default_kernel_name = 'python3'"      >> jupyter_notebook_config.py && \
+/bin/echo -e ""                                                          >> jupyter_notebook_config.py && \
+/bin/echo -e "# sets a password if PASSWORD is set in the environment"   >> jupyter_notebook_config.py && \
+/bin/echo -e "if 'PASSWORD' in os.environ:"                              >> jupyter_notebook_config.py && \
+/bin/echo -e "  c.NotebookApp.password = passwd(os.environ['PASSWORD'])" >> jupyter_notebook_config.py && \
+/bin/echo -e "  del os.environ['PASSWORD']"                              >> jupyter_notebook_config.py 
 
 # Jupyter has issues with being run directly:
 #   https://github.com/ipython/ipython/issues/7062
 # We just add a little wrapper script.
-COPY run_jupyter.sh /
-RUN chmod +x /run_jupyter.sh
+RUN printf '#!/bin/bash\njupyter notebook "$@" --allow-root' > /usr/bin/notebook && chmod +x /usr/bin/notebook
+RUN printf '#!/bin/bash\njupyter lab      "$@" --allow-root' > /usr/bin/lab      && chmod +x /usr/bin/lab
+
 
 # IPython
 EXPOSE 8888
@@ -433,8 +469,21 @@ RUN cd ~/ && \
     rm -rf ~/opencv*
 
 
-
-
+# embed a file to test opencv
+RUN cd /root/ && \
+/bin/echo -e "import cv2 as cv"                                   > test-opencv.py && \
+/bin/echo -e "import numpy as np"                                >> test-opencv.py && \
+/bin/echo -e "for n in range(360):"                              >> test-opencv.py && \
+/bin/echo -e " i = np.zeros((400,400,3), dtype=np.uint8)"        >> test-opencv.py && \
+/bin/echo -e " for a in (90,0,45,-45):"                          >> test-opencv.py && \
+/bin/echo -e "  cv.ellipse(i,(int(n**1.05),n),(99,25),a+n**2,"   >> test-opencv.py && \
+/bin/echo -e "             0,360,(255,0,0),2,8)"                 >> test-opencv.py && \
+/bin/echo -e " cv.circle(i,(int(n**1.05),n),n%50,(0,0,255),-1,8)">> test-opencv.py && \
+/bin/echo -e " i = cv.blur(i,(20,20))"                           >> test-opencv.py && \
+/bin/echo -e " cv.imshow(\"OpenCV\",i)"                          >> test-opencv.py && \
+/bin/echo -e " cv.moveWindow(\"OpenCV\",0,200)"                  >> test-opencv.py && \
+/bin/echo -e " cv.waitKey(25)"                                   >> test-opencv.py && \
+/bin/echo -e "cv.destroyAllWindows()"                            >> test-opencv.py
 
 
 
@@ -447,7 +496,8 @@ RUN apt-get update && apt-get install -y supervisor \
   && apt-get autoremove \
   && rm -rf /var/cache/apt/archives/* \
   && rm -rf /var/lib/apt/lists/*
-COPY tensorboard.conf /etc/supervisor/conf.d/
+RUN printf '[program:tensorboard]\ncommand=tensorboard --port 6001 --logdir=/output' > /etc/supervisor/conf.d/tensorboard.conf
+EXPOSE 6001
 
 # graphviz for visualization
 RUN apt-get update && apt-get install -y \
@@ -511,17 +561,18 @@ RUN pip --no-cache-dir install git+git://github.com/fchollet/keras.git@${KERAS_V
 
 
 
+###### pytorch 
+RUN pip --no-cache-dir install torch tensorboardX torchvision
 
-
-##### pytorch
-RUN pip --no-cache-dir install --upgrade http://download.pytorch.org/whl/cu90/torch-0.3.0.post4-cp36-cp36m-linux_x86_64.whl \
-    tensorboardX \
-    torchvision==0.2.0
 
 #### OpenAI gym
 RUN apt-get update && apt-get install -y python-numpy python-dev cmake zlib1g-dev libjpeg-dev xvfb libav-tools xorg-dev python-opengl libboost-all-dev libsdl2-dev swig libgtk2.0-dev && git clone https://github.com/openai/gym.git && cd gym && pip install -e '.[classic_control,box2d,atari]' 
 
-RUN printf "import gym\nenv = gym.make(\"SpaceInvaders-v0\")\nenv.reset()\nfor i in range(900):\n  env.step(env.action_space.sample())\n  env.render()\ninput()" >> testgym.py
+RUN printf "import gym\nenv = gym.make(\"SpaceInvaders-v0\")\nenv.reset()\nfor i in range(1500):\n  env.step(env.action_space.sample())\n  env.render()\nimport time\ntime.sleep(2)\nenv.close()" >> /root/test-gym.py
 
-CMD python testgym.py
+WORKDIR /root/
 
+##### startup
+RUN /bin/echo -e "#!/bin/bash\npython test-gym.py\necho \"\n\nWelcome to AI Lab by AwokeKnowing.\nType 'lab' to launch Jupyter Lab\"\n/bin/bash" > /usr/local/bin/onstartup.sh && chmod 777 /usr/local/bin/onstartup.sh
+
+CMD /usr/local/bin/onstartup.sh
