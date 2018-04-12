@@ -1,3 +1,4 @@
+# About awokeknowing/aitools
 To run you need to have nvidia driver and nvidia-docker 2 for runtime=nvidia to work.  For x-forwarding, eg to see matplatlib and gym atari games locallly, you may need to run `xhost +si:localuser:root` first):
 
 `docker run --runtime=nvidia -ti --rm -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix awokeknowing/aitools`
