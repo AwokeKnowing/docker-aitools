@@ -3,7 +3,7 @@ Jupyter Lab for local AI work with Pytorch, Tensorflow, OpenCV, OpenAI Gym (base
 
 to build:
 ```
-docker build --no-cache -t awokeknowing/ailab:18.4 -t awokeknowing/ailab:latest .
+docker build --no-cache -t awokeknowing/ailab:18.4 -t awokeknowing/aitools:latest .
 ```
 
 to get ready to run (may not be needed, so first try without):
@@ -12,7 +12,7 @@ xhost +si:localuser:root
 ```
 to run (you need to have nvidia driver and nvidia-docker 2 aka runtime=nvidia installed):
 ```
-docker run --runtime=nvidia -ti --rm -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix awokeknowing/ailab
+docker run --runtime=nvidia -ti --rm -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix awokeknowing/aitools
 ```
 
 
