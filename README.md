@@ -3,7 +3,7 @@ Jupyter Lab for local AI work with Pytorch, Tensorflow, OpenCV, OpenAI Gym (base
 
 to build:
 ```
-docker build --no-cache -t awokeknowing/ailab:18.4 -t awokeknowing/aitools:latest .
+docker build --no-cache -t awokeknowing/aitools:18.4 -t awokeknowing/aitools:latest .
 ```
 
 to get ready to run (may not be needed, so first try without):
