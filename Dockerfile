@@ -2,7 +2,7 @@ FROM nvidia/cudagl:9.0-devel-ubuntu16.04
 LABEL maintainer "jamesdavidmorris@gmail.com"
 
 # to build:
-#   docker build --no-cache -t awokeknowing/aitools:2018-04-03 -t awokeknowing/aitools:latest .
+#   docker build --no-cache -t awokeknowing/aitools:18.4 -t awokeknowing/aitools:latest .
 
 # to set up machine for run: 
 #   once:         
